@@ -1,0 +1,631 @@
+<!DOCTYPE html>  
+<html lang="pt-BR">  
+<head>  
+<meta charset="UTF-8">  
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">  
+<title>GPS OVERKILL - DESENHO LIVRE (ANTI-RISCO)</title>  
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="https://ibb.co/Tq1yjrcq">
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />  
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>  
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<style>  
+    html, body { margin: 0; padding: 0; height: 100%; background: #000; font-family: Arial, sans-serif; overflow: hidden; touch-action: none; }  
+    #map-container { height: 100%; width: 100%; background: #000; position: relative; }  
+    #map { height: 100%; width: 100%; }  
+  
+    .maplibregl-canvas { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(110%); }  
+  
+    .top { position: absolute; top: 0; width: 100%; background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%); color: #fff; padding: 20px 15px 40px 15px; z-index: 10; box-sizing: border-box; pointer-events: none; }  
+    .top .main { font-size: 22px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,1); }  
+    .top .sub { color: #5ec1ff; font-size: 16px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,1); margin-top: 5px; }  
+  
+    .alert-banner { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); width: 92%; background: #ff0000; color: white; padding: 20px; border-radius: 12px; z-index: 2000; text-align: center; font-weight: bold; font-size: 18px; box-shadow: 0 10px 30px rgba(255,0,0,0.8); display: none; border: 3px solid #fff; animation: blink-border 1s infinite; }  
+    @keyframes blink-border { 50% { border-color: #ff0000; } }  
+    .alert-banner p { margin: 5px 0; font-size: 14px; font-weight: normal; }  
+    .alert-banner button { margin-top: 10px; padding: 10px 20px; background: white; color: red; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }  
+  
+    .search-wrapper { position: absolute; top: 85px; left: 50%; transform: translateX(-50%); width: 92%; z-index: 10; }  
+    .search { display: flex; gap: 10px; width: 100%; }  
+    .search input { flex: 1; padding: 15px; border: none; border-radius: 12px; font-size: 16px; background: rgba(30,30,30,0.95); color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.6); }  
+    .search button { padding: 15px 20px; border: none; border-radius: 12px; background: #00bfff; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.6); }  
+      
+    .suggestions { background: rgba(30,30,30,0.95); color: white; border-radius: 12px; margin-top: 5px; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.6); }  
+    .suggestion-item { padding: 15px; border-bottom: 1px solid #444; cursor: pointer; }  
+  
+    .car-marker { width: 48px; height: 48px; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300bfff" stroke="white" stroke-width="1.5"><path d="M12 2L4 20h16L12 2z"/></svg>'); background-size: contain; background-repeat: no-repeat; background-position: center; transition: none; filter: drop-shadow(0px 5px 10px rgba(0,0,0,0.8)); }  
+  
+    .speed { position: absolute; bottom: 120px; left: 15px; background: rgba(30, 30, 30, 0.95); border: 3px solid #00bfff; color: #fff; width: 75px; height: 75px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.8); }  
+    .speed #speed-val { font-size: 26px; font-weight: bold; line-height: 1; }  
+    .speed small { font-size: 12px; opacity: 0.8; }  
+      
+    /* === NOVOS BOTÕES DE DESENHO === */
+    .btn-draw { position: absolute; top: 150px; right: 15px; background: #1a1a1a; border: 2px solid #ff3333; color: #ff3333; padding: 10px 15px; border-radius: 12px; font-weight: bold; z-index: 10; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }  
+    .btn-clear { position: absolute; top: 200px; right: 15px; background: #1a1a1a; border: 2px solid #aaa; color: #aaa; padding: 10px 15px; border-radius: 12px; font-weight: bold; z-index: 10; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }  
+
+    .btn-voice { position: absolute; bottom: 120px; right: 15px; background: #1a1a1a; border: 2px solid #f97316; color: #f97316; padding: 10px 15px; border-radius: 12px; font-weight: bold; z-index: 10; cursor: pointer; }  
+    .btn-steps { position: absolute; bottom: 170px; right: 15px; background: #1a1a1a; border: 2px solid #5ec1ff; color: #5ec1ff; padding: 10px 15px; border-radius: 12px; font-weight: bold; z-index: 10; cursor: pointer; display: none; }  
+    .btn-center { position: absolute; bottom: 220px; right: 15px; background: #1a1a1a; border: 2px solid #5ec1ff; color: #5ec1ff; width: 50px; height: 50px; border-radius: 50%; font-size: 24px; display: none; align-items: center; justify-content: center; z-index: 10; cursor: pointer; }  
+  
+    .bottom { position: absolute; bottom: 0; width: 100%; background: #1a1a1a; color: white; padding: 20px 15px; z-index: 10; box-shadow: 0 -10px 30px rgba(0,0,0,0.8); box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; border-top-left-radius: 20px; border-top-right-radius: 20px; border-top: 1px solid #333; }  
+    .time { font-size: 28px; font-weight: bold; color: #00bfff; }  
+    .info { color: #aaa; font-size: 16px; margin-top: 4px; }  
+  
+    .steps-panel { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); width: 92%; max-height: 50%; background: rgba(20,20,20,0.95); border-radius: 12px; border: 1px solid #333; z-index: 100; color: white; overflow-y: auto; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.9); }  
+    .steps-header { background: #00bfff; color: #000; padding: 15px; font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; position: sticky; top: 0; }  
+    .steps-header span { cursor: pointer; font-size: 20px; }  
+    .steps-list { padding: 0; margin: 0; list-style: none; }  
+    .step-item { padding: 15px; border-bottom: 1px solid #333; font-size: 15px; }  
+    
+    /* Um overlay visual para avisar que está no modo de desenho */
+    #draw-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 4px solid #ff3333; pointer-events: none; z-index: 9; display: none; box-sizing: border-box; }
+</style>  
+</head>  
+<body>  
+<div id="map-container">
+    <div id="draw-overlay"></div>
+    <div id="map"></div>
+</div>  
+<div class="top">  
+    <div class="main" id="instruction">Aguardando destino...</div>  
+    <div class="sub" id="next-street">Map Tiles: Google Traffic (Ativo)</div>  
+</div>  
+<div class="alert-banner" id="alert-banner">  
+    ⚠️ ROTA BLOQUEADA ⚠️  
+    <p id="alert-street">Passa por área restrita.</p>  
+    <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+        <button onclick="document.getElementById('alert-banner').style.display='none'">CANCELAR</button>  
+        <button onclick="forcarPassagem()" style="background: #222; color: #ff3333; border: 1px solid #ff3333;">IR MESMO ASSIM</button>
+    </div>
+</div>  
+<div class="search-wrapper">  
+    <div class="search">  
+        <input id="dest" placeholder="Para onde, pai?" autocomplete="off">  
+        <button id="search-btn">ENTER</button>  
+    </div>  
+    <div class="suggestions" id="suggestions"></div>  
+</div>  
+
+<button class="btn-draw" id="btn-draw" onclick="toggleDrawMode()">🖌︄1�7 BLOQUEAR ÁREA</button>
+<button class="btn-clear" id="btn-clear" onclick="clearRiskZones()">🗑︄1�7 LIMPAR ÁREAS</button>
+
+<div class="speed"><div id="speed-val">0</div><small>km/h</small></div>  
+<button class="btn-voice" id="btn-voice" onclick="toggleVoz()">🎙︄1�7 VOZ: ROBÔ</button>
+<button class="btn-center" id="btn-center" onclick="recenterMap()">🎯</button>
+<button class="btn-steps" id="btn-steps" onclick="toggleSteps()">VER PASSOS</button>
+
+<div class="steps-panel" id="steps-panel">  
+    <div class="steps-header"><div>Passo a Passo (Rota Atual)</div><span onclick="toggleSteps()">✄1�7</span></div>  
+    <ul class="steps-list" id="steps-list"></ul>  
+</div>  
+<div class="bottom">  
+    <div><div class="time" id="eta">--:--</div><div class="info"><span id="trip-dist">-- km</span>  1�7 <span id="trip-time">-- min</span></div></div>  
+    <button id="sim-btn-bottom" onclick="toggleSimulation()" style="display:none; background:#5ec1ff; border:none; border-radius:12px; padding:10px 20px; font-weight:bold; cursor:pointer; color:#000;">SIMULAR</button>  
+</div>  
+<script>  
+// =========================================================  
+// BANCO DE DADOS DINÂMICO (CARREGA DA MEMÓRIA DO CELULAR)
+// =========================================================  
+let ZONAS_DE_RISCO_GEOJSON = { "type": "FeatureCollection", "features": [] };
+
+const zonasSalvas = localStorage.getItem('minhasZonasDeRisco');
+if(zonasSalvas) {
+    try { ZONAS_DE_RISCO_GEOJSON = JSON.parse(zonasSalvas); } 
+    catch(e) { console.log("Erro ao carregar zonas salvas."); }
+}
+
+// =========================================================  
+  
+const map = new maplibregl.Map({  
+    container: 'map',  
+    style: {  
+        version: 8,  
+        sources: {  
+            'google-traffic': {  
+                type: 'raster',  
+                tiles: [  
+                    'https://mt0.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',  
+                    'https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',  
+                    'https://mt2.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',  
+                    'https://mt3.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}'  
+                ],  
+                tileSize: 256,  
+                attribution: 'Google Traffic'  
+            }  
+        },  
+        layers: [{ id: 'google-traffic-layer', type: 'raster', source: 'google-traffic', paint: { 'raster-opacity': 1 } }]  
+    },  
+    center: [-43.2096, -22.9035],  
+    zoom: 13, pitch: 0, bearing: 0, attributionControl: false  
+});  
+
+map.on('load', () => {
+    map.addSource('zonas-risco-source', { 'type': 'geojson', 'data': ZONAS_DE_RISCO_GEOJSON });
+    map.addLayer({ 'id': 'zonas-risco-fill', 'type': 'fill', 'source': 'zonas-risco-source', 'paint': { 'fill-color': '#ff0000', 'fill-opacity': 0.3 } });
+    map.addLayer({ 'id': 'zonas-risco-outline', 'type': 'line', 'source': 'zonas-risco-source', 'paint': { 'line-color': '#ff0000', 'line-width': 3 } });
+    map.addSource('draw-temp-source', { 'type': 'geojson', 'data': { "type": "FeatureCollection", "features": [] } });
+    map.addLayer({ 'id': 'draw-temp-line', 'type': 'line', 'source': 'draw-temp-source', 'paint': { 'line-color': '#ff3333', 'line-width': 4, 'line-dasharray': [2, 2] } });
+});
+  
+// =========================================================  
+// LÓGICA DE PASSAR O DEDO (DRAW MODE)
+// =========================================================  
+let isDrawingMode = false;
+let currentDrawnCoords = [];
+
+function toggleDrawMode() {
+    isDrawingMode = !isDrawingMode;
+    const btn = document.getElementById('btn-draw');
+    const overlay = document.getElementById('draw-overlay');
+    
+    if (isDrawingMode) {
+        btn.innerText = "🛑 FINALIZAR DESENHO";
+        btn.style.background = "#ff3333";
+        btn.style.color = "#fff";
+        overlay.style.display = "block";
+        document.getElementById("instruction").innerText = "Passe o dedo para bloquear a área";
+        
+        map.dragPan.disable();
+        map.scrollZoom.disable();
+        map.touchZoomRotate.disable();
+    } else {
+        btn.innerText = "🖌︄1�7 BLOQUEAR ÁREA";
+        btn.style.background = "#1a1a1a";
+        btn.style.color = "#ff3333";
+        overlay.style.display = "none";
+        document.getElementById("instruction").innerText = "Aguardando destino...";
+        
+        map.dragPan.enable();
+        map.scrollZoom.enable();
+        map.touchZoomRotate.enable();
+        
+        currentDrawnCoords = [];
+        map.getSource('draw-temp-source').setData({ "type": "FeatureCollection", "features": [] });
+    }
+}
+
+function clearRiskZones() {
+    if(confirm("Tem certeza que deseja apagar todas as áreas bloqueadas?")) {
+        ZONAS_DE_RISCO_GEOJSON = { "type": "FeatureCollection", "features": [] };
+        localStorage.removeItem('minhasZonasDeRisco');
+        map.getSource('zonas-risco-source').setData(ZONAS_DE_RISCO_GEOJSON);
+        alert("Áreas limpas com sucesso!");
+    }
+}
+
+map.on('mousedown', startDrawing);
+map.on('touchstart', startDrawing);
+
+function startDrawing(e) {
+    if(!isDrawingMode) return;
+    currentDrawnCoords = [[e.lngLat.lng, e.lngLat.lat]];
+}
+
+map.on('mousemove', moveDrawing);
+map.on('touchmove', moveDrawing);
+
+function moveDrawing(e) {
+    if(!isDrawingMode || currentDrawnCoords.length === 0) return;
+    currentDrawnCoords.push([e.lngLat.lng, e.lngLat.lat]);
+    
+    map.getSource('draw-temp-source').setData({
+        "type": "Feature",
+        "geometry": { "type": "LineString", "coordinates": currentDrawnCoords }
+    });
+}
+
+map.on('mouseup', endDrawing);
+map.on('touchend', endDrawing);
+
+function endDrawing(e) {
+    if(!isDrawingMode || currentDrawnCoords.length < 3) {
+        currentDrawnCoords = [];
+        return;
+    }
+    
+    currentDrawnCoords.push(currentDrawnCoords[0]);
+    let lng = currentDrawnCoords[0][0];
+    let lat = currentDrawnCoords[0][1];
+
+    document.getElementById("instruction").innerText = "Buscando nome do local...";
+
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14`)
+        .then(res => res.json())
+        .then(data => {
+            let nomeLugar = "Área Desconhecida";
+            if (data && data.address) {
+                nomeLugar = data.address.suburb || data.address.town || data.address.city_district || "Área Restrita";
+            }
+
+            let newFeature = turf.polygon([currentDrawnCoords], { nome: nomeLugar });
+            
+            ZONAS_DE_RISCO_GEOJSON.features.push(newFeature);
+            localStorage.setItem('minhasZonasDeRisco', JSON.stringify(ZONAS_DE_RISCO_GEOJSON));
+            map.getSource('zonas-risco-source').setData(ZONAS_DE_RISCO_GEOJSON);
+            
+            speak(nomeLugar + " bloqueado.");
+            toggleDrawMode();
+        })
+        .catch(err => {
+            let newFeature = turf.polygon([currentDrawnCoords], { nome: "Área Customizada" });
+            ZONAS_DE_RISCO_GEOJSON.features.push(newFeature);
+            localStorage.setItem('minhasZonasDeRisco', JSON.stringify(ZONAS_DE_RISCO_GEOJSON));
+            map.getSource('zonas-risco-source').setData(ZONAS_DE_RISCO_GEOJSON);
+            toggleDrawMode();
+        });
+}
+
+// =========================================================  
+// VARIAVEIS GERAIS
+// ========================================================= 
+let userPos = { lat: -22.9035, lng: -43.2096 };  
+let allRoutesData = [];  
+let routeCoordinates = [];  
+let currentRouteSteps = []; 
+let isSimulating = false; let isTracking = true; let simFrame;  
+let currentSeg = 0, progressInMeters = 0, lastTime = 0, currentSpeedKmh = 60;  
+let currentStepIndex = 0; let modoVoz = 'robo';  
+let currentDest = null; 
+let isRecalculating = false; 
+let ignorarRiscoGlobal = false;
+  
+const el = document.createElement('div');  
+el.className = 'car-marker';  
+const carMarker = new maplibregl.Marker({ element: el, pitchAlignment: 'map', rotationAlignment: 'map' }).setLngLat([userPos.lng, userPos.lat]).addTo(map);  
+
+// FORÇA O NAVEGADOR A LIBERAR O ÁUDIO NO PRIMEIRO CLIQUE (ANTI-BLOQUEIO DE AUTOPLAY)
+document.body.addEventListener('click', () => {
+    if(window.speechSynthesis && window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.getVoices();
+    }
+}, {once: true});
+  
+// =========================================================  
+// NOVA FUNÇÃO ANTI-RISCO USANDO TURF.JS E POLÍGONOS
+// =========================================================  
+function checarRotaSegura(coordenadasDaRota) {  
+    if(ZONAS_DE_RISCO_GEOJSON.features.length === 0) return { segura: true };
+
+    const rotaLine = turf.lineString(coordenadasDaRota);
+    for (let i = 0; i < ZONAS_DE_RISCO_GEOJSON.features.length; i++) {
+        const poligonoRisco = ZONAS_DE_RISCO_GEOJSON.features[i];
+        if (turf.booleanIntersects(rotaLine, poligonoRisco)) {
+            return { segura: false, ruaPerigosa: poligonoRisco.properties.nome };
+        }
+    }
+    return { segura: true }; 
+}  
+
+function getDistance(p1, p2) {  
+    const R = 6371e3; const φ1 = p1[1] * Math.PI/180; const φ2 = p2[1] * Math.PI/180;  
+    const Δφ = (p2[1]-p1[1]) * Math.PI/180; const Δλ = (p2[0]-p1[0]) * Math.PI/180;  
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);  
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c;  
+}  
+  
+// =========================================================  
+// VOZ E TRADUTOR  
+// =========================================================  
+function toggleVoz() {  
+    modoVoz = modoVoz === 'robo' ? 'minha' : 'robo';  
+    document.getElementById('btn-voice').innerText = modoVoz === 'robo' ? '🎙︄1�7 VOZ: ROBÔ' : '🎙︄1�7 VOZ: MINHA';  
+    speak(modoVoz === 'minha' ? "Voz pessoal" : "Voz robô");  
+}  
+  
+function speak(text) {  
+    if(!text || text === "undefined") return;  
+    if (modoVoz === 'minha') {  
+        let txt = text.toLowerCase(); let arquivo = "frente.mp3";  
+        if (txt.includes("esquerda")) arquivo = "esquerda.mp3";  
+        else if (txt.includes("direita") || txt.includes("retorno")) arquivo = "direita.mp3";  
+        else if (txt.includes("chegou") || txt.includes("destino")) arquivo = "chegou.mp3";  
+        else if (txt.includes("recalculando")) arquivo = "recalculando.mp3";  
+        else if (txt.includes("perigo") || txt.includes("risco") || txt.includes("restrita") || txt.includes("bloqueada")) arquivo = "perigo.mp3";  
+  
+        let audio = new Audio(arquivo);  
+        audio.play().catch(e => { falarRobo(text); });  
+    } else { falarRobo(text); }  
+}  
+  
+function falarRobo(text) {  
+    if(!window.speechSynthesis) return;  
+    let msg = new SpeechSynthesisUtterance(text); 
+    msg.lang = "pt-BR";  
+    // Removido o cancel() que estava engolindo o som no Android e Testadores Web
+    speechSynthesis.speak(msg);  
+}  
+  
+function traduzirPasso(step) {  
+    if (!step || !step.maneuver) return "Siga em frente";  
+    let type = step.maneuver.type || ""; let modifier = step.maneuver.modifier || ""; let name = step.name ? " na " + step.name : "";  
+    if (type === 'depart') return "Siga em frente" + name; if (type === 'arrive') return "Você chegou ao destino.";  
+    let direcao = "em frente";  
+    if (modifier.includes('left')) direcao = "à esquerda"; else if (modifier.includes('right')) direcao = "à direita"; else if (modifier === 'uturn') direcao = "faça o retorno";  
+    if (type === 'turn') return "Vire " + direcao + name; if (type === 'continue') return "Continue " + direcao + name;  
+    if (type === 'fork' || type === 'off ramp') return "Mantenha-se " + direcao + name; if (type === 'roundabout') return "Saia " + direcao;  
+    return "Siga " + direcao + name;  
+}  
+  
+// =========================================================  
+// NAVEGAÇÃO E BUSCA  
+// =========================================================  
+map.on('dragstart', () => { if(!isDrawingMode) { isTracking = false; document.getElementById('btn-center').style.display = 'flex'; } });  
+function recenterMap() { isTracking = true; document.getElementById('btn-center').style.display = 'none'; map.flyTo({ center: carMarker.getLngLat(), pitch: 65, zoom: 17.5 }); }  
+  
+const destInput = document.getElementById('dest');  
+const suggestionsBox = document.getElementById('suggestions');  
+let typingTimer;  
+  
+destInput.addEventListener('input', (e) => {  
+    clearTimeout(typingTimer); let q = e.target.value;  
+    if(q.length < 3) { suggestionsBox.style.display = 'none'; return; }  
+    typingTimer = setTimeout(() => {  
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=br&limit=5&q=${q}`)  
+            .then(r => r.json())  
+            .then(data => {  
+                suggestionsBox.innerHTML = '';  
+                if(data.length > 0) {  
+                    suggestionsBox.style.display = 'block';  
+                    data.forEach(item => {  
+                        let div = document.createElement('div'); div.className = 'suggestion-item';  
+                        div.innerText = item.display_name.split(',').slice(0,4).join(',');  
+                        div.onclick = () => {  
+                            destInput.value = div.innerText; suggestionsBox.style.display = 'none';  
+                            document.getElementById("instruction").innerText = "Calculando...";  
+                            currentDest = { lat: parseFloat(item.lat), lng: parseFloat(item.lon) };
+                            ignorarRiscoGlobal = false;
+                            calculateRoute(currentDest.lat, currentDest.lng);  
+                        };  
+                        suggestionsBox.appendChild(div);  
+                    });  
+                } else { suggestionsBox.style.display = 'none'; }  
+            });  
+    }, 500);  
+});  
+  
+document.getElementById('dest').addEventListener("keypress", e => { if (e.key === "Enter") document.getElementById('search-btn').click(); });  
+document.getElementById('search-btn').addEventListener('click', () => {  
+    let q = destInput.value;  
+    if(q) {  
+        ignorarRiscoGlobal = false;
+        suggestionsBox.style.display = 'none'; document.getElementById("instruction").innerText = "Buscando...";  
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}, Brasil&limit=1`)  
+            .then(r => r.json())  
+            .then(d => {  
+                if (d && d.length > 0) {
+                    currentDest = { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
+                    calculateRoute(currentDest.lat, currentDest.lng);  
+                }
+                else { document.getElementById("instruction").innerText = "Erro."; alert("Local não encontrado."); }  
+            });  
+    }  
+});  
+  
+// =========================================================  
+// CALCULAR ROTA COM FILTRO DE ÁREA DE RISCO  
+// =========================================================  
+function calculateRoute(lat, lng) {  
+    let carPos = carMarker.getLngLat();  
+    fetch(`https://router.project-osrm.org/route/v1/driving/${carPos.lng},${carPos.lat};${lng},${lat}?overview=full&geometries=geojson&steps=true&alternatives=3`)  
+        .then(res => res.json())  
+        .then(data => {  
+            if (!data || !data.routes || data.routes.length === 0) return alert("Erro no servidor.");  
+            allRoutesData = data.routes;  
+              
+            let rotaEscolhida = -1;  
+            let ruasPerigosasCruzadas = [];  
+  
+            if (ignorarRiscoGlobal) {
+                rotaEscolhida = 0;
+            } else {
+                for (let i = 0; i < allRoutesData.length; i++) {  
+                    let check = checarRotaSegura(allRoutesData[i].geometry.coordinates);  
+                    if (check.segura) {  
+                        rotaEscolhida = i;  
+                        break; 
+                    } else {  
+                        ruasPerigosasCruzadas.push(check.ruaPerigosa);  
+                    }  
+                }  
+            }
+  
+            if (rotaEscolhida === -1) {  
+                document.getElementById('alert-street').innerText = "Evite a área: " + ruasPerigosasCruzadas[0];  
+                document.getElementById('alert-banner').style.display = 'block';  
+                speak("Atenção, rota bloqueada em " + ruasPerigosasCruzadas[0]);
+                renderAllRoutes(0, true); 
+            } else {  
+                document.getElementById('alert-banner').style.display = 'none';  
+                renderAllRoutes(rotaEscolhida, ignorarRiscoGlobal);
+            }  
+              
+            map.flyTo({ center: allRoutesData[0].geometry.coordinates[0], zoom: 16, pitch: 65 });  
+            document.getElementById('sim-btn-bottom').style.display = 'block';  
+        });  
+}  
+
+function forcarPassagem() {
+    ignorarRiscoGlobal = true; 
+    document.getElementById('alert-banner').style.display = 'none';
+    speak("Aviso ignorado. Rota forçada.");
+    if(currentDest) {
+        calculateRoute(currentDest.lat, currentDest.lng);
+    }
+}
+  
+function renderAllRoutes(selectedIndex, isDangerous) {  
+    const selectedRoute = allRoutesData[selectedIndex];  
+    routeCoordinates = selectedRoute.geometry.coordinates;  
+    currentRouteSteps = selectedRoute.legs[0].steps; 
+    currentStepIndex = 0;   
+      
+    let distKm = (selectedRoute.distance / 1000).toFixed(1); let durationMin = Math.round(selectedRoute.duration / 60);  
+    document.getElementById("trip-dist").innerText = distKm + " km"; document.getElementById("trip-time").innerText = durationMin + " min";  
+    let now = new Date(); now.setMinutes(now.getMinutes() + durationMin);  
+    document.getElementById("eta").innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');  
+  
+    const stepsList = document.getElementById("steps-list"); stepsList.innerHTML = "";  
+    currentRouteSteps.forEach(step => {  
+        let li = document.createElement("li"); li.className = "step-item";  
+        li.innerText = traduzirPasso(step) + ` (${(step.distance).toFixed(0)}m)`;  
+        stepsList.appendChild(li);  
+    });  
+      
+    // GERA A INSTRUÇÃO E FALA ELA IMEDIATAMENTE!
+    let primeiraInstrucao = traduzirPasso(currentRouteSteps[0]);
+    document.getElementById("instruction").innerText = isDangerous ? "ROTA FORÇADA: " + primeiraInstrucao : primeiraInstrucao;  
+    document.getElementById("btn-steps").style.display = 'block';  
+    
+    // Agora o GPS fala o que você tem que fazer logo que a rota é desenhada
+    speak(primeiraInstrucao);
+  
+    for (let i = 0; i < 5; i++) {  
+        if (map.getLayer('route-line-' + i)) map.removeLayer('route-line-' + i);  
+        if (map.getSource('route-' + i)) map.removeSource('route-' + i);  
+    }  
+  
+    let corLinhaPrincipal = isDangerous ? '#ff0000' : '#00bfff';  
+  
+    allRoutesData.forEach((route, index) => {  
+        if (index === selectedIndex) return;  
+        map.addSource('route-' + index, { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });  
+        map.addLayer({ id: 'route-line-' + index, type: 'line', source: 'route-' + index, layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#555555', 'line-width': 8, 'line-opacity': 0.7 } });  
+          
+        map.on('click', 'route-line-' + index, () => {  
+            if(isDrawingMode) return;
+            speak("Recalculando.");  
+            let checkAlt = checarRotaSegura(route.geometry.coordinates);  
+            if(!checkAlt.segura) {  
+                document.getElementById('alert-street').innerText = "Risco em: " + checkAlt.ruaPerigosa;  
+                document.getElementById('alert-banner').style.display = 'block';  
+                speak("Atenção, risco em " + checkAlt.ruaPerigosa);
+                renderAllRoutes(index, true);  
+            } else {  
+                document.getElementById('alert-banner').style.display = 'none';  
+                renderAllRoutes(index, false);  
+            }  
+        });  
+    });  
+  
+    map.addSource('route-' + selectedIndex, { type: 'geojson', data: { type: 'Feature', geometry: selectedRoute.geometry } });  
+    map.addLayer({ id: 'route-line-' + selectedIndex, type: 'line', source: 'route-' + selectedIndex, layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': corLinhaPrincipal, 'line-width': 10, 'line-opacity': 1.0 } });  
+    recenterMap();  
+}  
+  
+function toggleSteps() { const panel = document.getElementById('steps-panel'); panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; }  
+  
+function getBearing(start, end) {  
+    const startLat = start[1] * Math.PI/180, startLng = start[0] * Math.PI/180;  
+    const endLat = end[1] * Math.PI/180, endLng = end[0] * Math.PI/180;  
+    const y = Math.sin(endLng - startLng) * Math.cos(endLat);  
+    const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLng - startLng);  
+    return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;  
+}  
+function interpolatePosition(p1, p2, fraction) { return [p1[0] + (p2[0] - p1[0]) * fraction, p1[1] + (p2[1] - p1[1]) * fraction]; }  
+  
+function checkManeuver(currentPos) {  
+    if (!currentRouteSteps || currentRouteSteps.length === 0 || currentStepIndex === -1) return;  
+      
+    let finalDest = routeCoordinates[routeCoordinates.length - 1];
+    if (finalDest && getDistance(currentPos, finalDest) < 50) {  
+        document.getElementById("instruction").innerText = "Você chegou ao destino."; 
+        speak("Você chegou ao seu destino.");  
+        currentStepIndex = -1; 
+        if(isSimulating) toggleSimulation(); 
+        return;  
+    }  
+  
+    if (currentStepIndex < currentRouteSteps.length - 1) {  
+        let nextStep = currentRouteSteps[currentStepIndex + 1];  
+        if(nextStep && nextStep.maneuver) {  
+            // Distância aumentada para o tempo de resposta da voz
+            let distToManeuver = getDistance(currentPos, nextStep.maneuver.location);
+            if (distToManeuver < 100) {  
+                currentStepIndex++; 
+                let comando = traduzirPasso(currentRouteSteps[currentStepIndex]);  
+                
+                // Evita que ele repita a mesma frase várias vezes de forma travada
+                if (document.getElementById("instruction").innerText !== comando) {
+                    document.getElementById("instruction").innerText = comando; 
+                    speak(comando);  
+                }
+            }  
+        }  
+    }  
+}  
+
+// =========================================================  
+// CHECAGEM DE SAÍDA DA ROTA (AUTO-RECÁLCULO)
+// =========================================================  
+function checarForaDaRota(currentPos) {
+    if (!routeCoordinates || routeCoordinates.length === 0) return false;
+    let minDist = Infinity;
+    for (let i = 0; i < routeCoordinates.length; i += 2) {
+        let d = getDistance(currentPos, routeCoordinates[i]);
+        if (d < minDist) minDist = d;
+    }
+    return minDist > 60; 
+}
+  
+function animateSimulation(timestamp) {  
+    if (!isSimulating) return;  
+    if (!lastTime) lastTime = timestamp; const deltaTime = timestamp - lastTime; lastTime = timestamp;  
+    currentSpeedKmh += (Math.random() - 0.5) * 2; if (currentSpeedKmh > 75) currentSpeedKmh = 75; if (currentSpeedKmh < 45) currentSpeedKmh = 45;  
+    document.getElementById("speed-val").innerText = Math.round(currentSpeedKmh);  
+    progressInMeters += (currentSpeedKmh / 3.6) * (deltaTime / 1000);  
+  
+    const p1 = routeCoordinates[currentSeg]; const p2 = routeCoordinates[currentSeg + 1];  
+    if (!p2) { toggleSimulation(); return; }  
+  
+    const segmentLength = getDistance(p1, p2);  
+    if (progressInMeters >= segmentLength) { progressInMeters -= segmentLength; currentSeg++; requestAnimationFrame(animateSimulation); return; }  
+  
+    const currentPos = interpolatePosition(p1, p2, progressInMeters / segmentLength);  
+    carMarker.setLngLat(currentPos); carMarker.setRotation(getBearing(p1, p2));  
+    if(isTracking) map.jumpTo({ center: currentPos, bearing: getBearing(p1, p2), pitch: 65, zoom: 17.5 });  
+  
+    checkManeuver(currentPos); simFrame = requestAnimationFrame(animateSimulation);  
+}  
+  
+function toggleSimulation() {  
+    isSimulating = !isSimulating; const btn = document.getElementById("sim-btn-bottom");  
+    if (isSimulating) {  
+        if(routeCoordinates.length === 0) return alert("Sem rota.");  
+        btn.innerText = "PARAR"; btn.style.background = "#ff3333";  
+        currentSeg = 0; progressInMeters = 0; lastTime = 0; currentStepIndex = 0;  
+        recenterMap(); setTimeout(() => { simFrame = requestAnimationFrame(animateSimulation); }, 1000);  
+    } else {  
+        btn.innerText = "SIMULAR"; btn.style.background = "#5ec1ff"; cancelAnimationFrame(simFrame); document.getElementById("speed-val").innerText = "0";  
+    }  
+}  
+  
+navigator.geolocation.watchPosition(pos => {  
+    if(isSimulating) return;  
+    userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude }; let currentPos = [userPos.lng, userPos.lat];  
+    carMarker.setLngLat(currentPos);  
+    if(isTracking) {  
+        if (pos.coords.heading) { carMarker.setRotation(pos.coords.heading); map.easeTo({ center: currentPos, bearing: pos.coords.heading, pitch: 65 }); }  
+        else { map.easeTo({ center: currentPos, pitch: 65 }); }  
+    }  
+    if (pos.coords.speed) document.getElementById("speed-val").innerText = (pos.coords.speed * 3.6).toFixed(0);  
+    
+    if(routeCoordinates.length > 0 && currentDest) { 
+        if (checarForaDaRota(currentPos)) {
+            if (!isRecalculating) {
+                isRecalculating = true;
+                speak("Você saiu da rota. Recalculando.");
+                document.getElementById("instruction").innerText = "Recalculando...";
+                calculateRoute(currentDest.lat, currentDest.lng);
+                setTimeout(() => { isRecalculating = false; }, 8000); 
+            }
+        } else {
+            checkManeuver(currentPos);
+        }
+    }  
+}, err => console.log(err), { enableHighAccuracy: true });  
+</script>  
+</body>  
+</html>
