@@ -3,12 +3,11 @@
 <head>  
 <meta charset="UTF-8">  
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">  
-<title>GPS OVERKILL - DESENHO LIVRE (ANTI-RISCO)</title>  
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="icon" href="https://ibb.co/Tq1yjrcq">
+<title>GPS OVERKILL - DESENHO LIVRE (ANTI-RISCO)</title>  
 <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />  
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>  
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
@@ -42,7 +41,6 @@
     .speed #speed-val { font-size: 26px; font-weight: bold; line-height: 1; }  
     .speed small { font-size: 12px; opacity: 0.8; }  
       
-    /* === NOVOS BOTÕES DE DESENHO === */
     .btn-draw { position: absolute; top: 150px; right: 15px; background: #1a1a1a; border: 2px solid #ff3333; color: #ff3333; padding: 10px 15px; border-radius: 12px; font-weight: bold; z-index: 10; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }  
     .btn-clear { position: absolute; top: 200px; right: 15px; background: #1a1a1a; border: 2px solid #aaa; color: #aaa; padding: 10px 15px; border-radius: 12px; font-weight: bold; z-index: 10; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }  
 
@@ -60,7 +58,6 @@
     .steps-list { padding: 0; margin: 0; list-style: none; }  
     .step-item { padding: 15px; border-bottom: 1px solid #333; font-size: 15px; }  
     
-    /* Um overlay visual para avisar que está no modo de desenho */
     #draw-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 4px solid #ff3333; pointer-events: none; z-index: 9; display: none; box-sizing: border-box; }
 </style>  
 </head>  
@@ -89,20 +86,20 @@
     <div class="suggestions" id="suggestions"></div>  
 </div>  
 
-<button class="btn-draw" id="btn-draw" onclick="toggleDrawMode()">🖌︄1�7 BLOQUEAR ÁREA</button>
-<button class="btn-clear" id="btn-clear" onclick="clearRiskZones()">🗑︄1�7 LIMPAR ÁREAS</button>
+<button class="btn-draw" id="btn-draw" onclick="toggleDrawMode()">🖌️ BLOQUEAR ÁREA</button>
+<button class="btn-clear" id="btn-clear" onclick="clearRiskZones()">🗑️ LIMPAR ÁREAS</button>
 
 <div class="speed"><div id="speed-val">0</div><small>km/h</small></div>  
-<button class="btn-voice" id="btn-voice" onclick="toggleVoz()">🎙︄1�7 VOZ: ROBÔ</button>
+<button class="btn-voice" id="btn-voice" onclick="toggleVoz()">🎙️ VOZ: ROBÔ</button>
 <button class="btn-center" id="btn-center" onclick="recenterMap()">🎯</button>
 <button class="btn-steps" id="btn-steps" onclick="toggleSteps()">VER PASSOS</button>
 
 <div class="steps-panel" id="steps-panel">  
-    <div class="steps-header"><div>Passo a Passo (Rota Atual)</div><span onclick="toggleSteps()">✄1�7</span></div>  
+    <div class="steps-header"><div>Passo a Passo (Rota Atual)</div><span onclick="toggleSteps()">✖</span></div>  
     <ul class="steps-list" id="steps-list"></ul>  
 </div>  
 <div class="bottom">  
-    <div><div class="time" id="eta">--:--</div><div class="info"><span id="trip-dist">-- km</span>  1�7 <span id="trip-time">-- min</span></div></div>  
+    <div><div class="time" id="eta">--:--</div><div class="info"><span id="trip-dist">-- km</span> • <span id="trip-time">-- min</span></div></div>  
     <button id="sim-btn-bottom" onclick="toggleSimulation()" style="display:none; background:#5ec1ff; border:none; border-radius:12px; padding:10px 20px; font-weight:bold; cursor:pointer; color:#000;">SIMULAR</button>  
 </div>  
 <script>  
@@ -172,7 +169,7 @@ function toggleDrawMode() {
         map.scrollZoom.disable();
         map.touchZoomRotate.disable();
     } else {
-        btn.innerText = "🖌︄1�7 BLOQUEAR ÁREA";
+        btn.innerText = "🖌️ BLOQUEAR ÁREA";
         btn.style.background = "#1a1a1a";
         btn.style.color = "#ff3333";
         overlay.style.display = "none";
@@ -311,7 +308,7 @@ function getDistance(p1, p2) {
 // =========================================================  
 function toggleVoz() {  
     modoVoz = modoVoz === 'robo' ? 'minha' : 'robo';  
-    document.getElementById('btn-voice').innerText = modoVoz === 'robo' ? '🎙︄1�7 VOZ: ROBÔ' : '🎙︄1�7 VOZ: MINHA';  
+    document.getElementById('btn-voice').innerText = modoVoz === 'robo' ? '🎙️ VOZ: ROBÔ' : '🎙️ VOZ: MINHA';  
     speak(modoVoz === 'minha' ? "Voz pessoal" : "Voz robô");  
 }  
   
@@ -334,7 +331,6 @@ function falarRobo(text) {
     if(!window.speechSynthesis) return;  
     let msg = new SpeechSynthesisUtterance(text); 
     msg.lang = "pt-BR";  
-    // Removido o cancel() que estava engolindo o som no Android e Testadores Web
     speechSynthesis.speak(msg);  
 }  
   
@@ -474,12 +470,10 @@ function renderAllRoutes(selectedIndex, isDangerous) {
         stepsList.appendChild(li);  
     });  
       
-    // GERA A INSTRUÇÃO E FALA ELA IMEDIATAMENTE!
     let primeiraInstrucao = traduzirPasso(currentRouteSteps[0]);
     document.getElementById("instruction").innerText = isDangerous ? "ROTA FORÇADA: " + primeiraInstrucao : primeiraInstrucao;  
     document.getElementById("btn-steps").style.display = 'block';  
     
-    // Agora o GPS fala o que você tem que fazer logo que a rota é desenhada
     speak(primeiraInstrucao);
   
     for (let i = 0; i < 5; i++) {  
@@ -541,13 +535,11 @@ function checkManeuver(currentPos) {
     if (currentStepIndex < currentRouteSteps.length - 1) {  
         let nextStep = currentRouteSteps[currentStepIndex + 1];  
         if(nextStep && nextStep.maneuver) {  
-            // Distância aumentada para o tempo de resposta da voz
             let distToManeuver = getDistance(currentPos, nextStep.maneuver.location);
             if (distToManeuver < 100) {  
                 currentStepIndex++; 
                 let comando = traduzirPasso(currentRouteSteps[currentStepIndex]);  
                 
-                // Evita que ele repita a mesma frase várias vezes de forma travada
                 if (document.getElementById("instruction").innerText !== comando) {
                     document.getElementById("instruction").innerText = comando; 
                     speak(comando);  
